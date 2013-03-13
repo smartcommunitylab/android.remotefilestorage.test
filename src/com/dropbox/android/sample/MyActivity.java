@@ -8,6 +8,7 @@ import java.util.List;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -15,6 +16,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.Toast;
 import eu.trentorise.smartcampus.protocolcarrier.exceptions.ConnectionException;
 import eu.trentorise.smartcampus.protocolcarrier.exceptions.ProtocolException;
 import eu.trentorise.smartcampus.protocolcarrier.exceptions.SecurityException;
@@ -29,6 +31,7 @@ public class MyActivity extends Activity {
 	private Filestorage filestorage;
 
 	private ResAdapter resAdapter;
+	private AppAccount appAccount;
 
 	public String rid;
 
@@ -57,19 +60,17 @@ public class MyActivity extends Activity {
 
 			@Override
 			public void onClick(View v) {
-				Intent intent = new Intent();
-				intent.setClass(getApplicationContext(), AuthActivity.class);
-				intent.putExtra(AuthActivity.EXTRA_INPUT_APPNAME,
-						com.dropbox.android.sample.Constants.APPNAME);
-				intent.putExtra(AuthActivity.EXTRA_INPUT_AUTHTOKEN,
-						com.dropbox.android.sample.Constants.AUTH_TOKEN);
-				intent.putExtra(AuthActivity.EXTRA_INPUT_ACCOUNTNAME,
-						com.dropbox.android.sample.Constants.ACCOUNTNAME);
-				intent.putExtra(AuthActivity.EXTRA_INPUT_APPACCOUNTID,
-						com.dropbox.android.sample.Constants.APP_ACCOUNT_ID);
-				intent.putExtra(AuthActivity.EXTRA_INPUT_STORAGETYPE,
-						StorageType.DROPBOX);
-				startActivityForResult(intent, 500);
+				if (appAccount == null) {
+					Toast.makeText(MyActivity.this, "Read account first!", Toast.LENGTH_LONG).show();
+					return;
+				}
+				filestorage.startAuthActivityForResult(
+						MyActivity.this, 
+						com.dropbox.android.sample.Constants.AUTH_TOKEN,
+						com.dropbox.android.sample.Constants.ACCOUNTNAME,
+						appAccount.getId(),
+						StorageType.DROPBOX,
+						500);
 			}
 		});
 
@@ -79,18 +80,29 @@ public class MyActivity extends Activity {
 
 			@Override
 			public void onClick(View v) {
-				try {
-					List<AppAccount> appAccounts = filestorage.getAppAccounts();
-					List<UserAccount> userAccounts = filestorage
-							.getUserAccounts(com.dropbox.android.sample.Constants.AUTH_TOKEN);
-				} catch (Exception e) {
-					Log.e(getClass().getName(), e.getMessage());
-				}
+				new AsyncTask<Void, Void, List<AppAccount>>() {
+					@Override
+					protected List<AppAccount> doInBackground(Void... params) {
+						try {
+							return filestorage.getAppAccounts(com.dropbox.android.sample.Constants.AUTH_TOKEN);
+						} catch (Exception e) {
+							e.printStackTrace();
+							return null;
+						}
+					}
+					@Override
+					protected void onPostExecute(List<AppAccount> result) {
+						if (result != null && result.size() > 0) {
+							appAccount = result.get(0);
+							Toast.makeText(MyActivity.this, "Account: "+appAccount.getAppAccountName(), Toast.LENGTH_LONG).show();
+						}
+						Toast.makeText(MyActivity.this, "No Accounts!", Toast.LENGTH_LONG).show();
+					}
+				}.execute();
 			}
 		});
 
-		filestorage = new Filestorage(getApplicationContext(),
-				Constants.APPNAME);
+		filestorage = new Filestorage(getApplicationContext(), Constants.APPNAME, Constants.APPTOKEN, Constants.HOST, Constants.SERVICE);
 	}
 
 	@Override
@@ -113,16 +125,11 @@ public class MyActivity extends Activity {
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		if (requestCode == 500) {
 			if (resultCode == Activity.RESULT_OK) {
-				Bundle responseBundle = data
-						.getBundleExtra(AuthActivity.BUNDLE_RESPONSE);
-				UserAccount accountRegistered = responseBundle
-						.getParcelable(AuthActivity.EXTRA_OUTPUT_USERACCOUNT);
-				Log.i(getClass().getName(), "AUTHENTICATION OK"
-						+ accountRegistered.getId());
+				UserAccount accountRegistered = data.getParcelableExtra(Filestorage.EXTRA_OUTPUT_USERACCOUNT);
+				Log.i(getClass().getName(), "AUTHENTICATION OK" + accountRegistered.getId());
 			} else {
 				Log.i(getClass().getName(), "AUTHENTICATION KO");
 			}
-
 		}
 
 		if (requestCode == 10000) {

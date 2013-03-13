@@ -27,11 +27,13 @@ public class ResAdapter extends ArrayAdapter<String> {
 
 	private Activity context;
 	private int layoutResourceId;
+	private Filestorage storage;
 
 	public ResAdapter(Activity context, int textViewResourceId) {
 		super(context, textViewResourceId, new ArrayList<String>());
 		this.context = context;
 		layoutResourceId = textViewResourceId;
+		storage = new Filestorage(getContext(), "smartcampus", Constants.APPTOKEN, Constants.HOST, Constants.SERVICE);
 	}
 
 	@Override
@@ -79,7 +81,6 @@ public class ResAdapter extends ArrayAdapter<String> {
 
 		@Override
 		public void onClick(View v) {
-			Filestorage storage = new Filestorage(getContext(), "smartcampus");
 			try {
 				storage.deleteResource(Constants.AUTH_TOKEN,
 						Constants.USER_ACCOUNT_ID, res);
@@ -109,7 +110,6 @@ public class ResAdapter extends ArrayAdapter<String> {
 
 		@Override
 		public void onClick(View v) {
-			Filestorage storage = new Filestorage(getContext(), "smartcampus");
 			try {
 				Resource r = storage.getResource(Constants.AUTH_TOKEN, res);
 				ImageView view = (ImageView) img;
